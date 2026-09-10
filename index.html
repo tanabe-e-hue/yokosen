@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>よこ線 かんせい ワーク（3cm➔1cm）</title>
+  <style>
+    body {
+      margin: 0; padding: 0;
+      background-color: #eef7ff;
+      font-family: 'Hiragino Kaku Gothic ProN', meiryo, sans-serif;
+      text-align: center;
+      overflow: hidden;
+      touch-action: none;
+    }
+    
+    .screen { display: none; width: 100vw; height: 100vh; position: absolute; top:0; left:0; }
+    .active-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+    /* プレイヤー選択 */
+    #player-screen { background: #e3f2fd; }
+    .player-title { font-size: 28px; font-weight: bold; color: #1565c0; margin-bottom: 20px; }
+    .player-list { display: flex; flex-direction: column; gap: 12px; width: 340px; }
+    .player-btn {
+      padding: 14px 20px; font-size: 20px; font-weight: bold; background: white;
+      border: 3px solid #2196f3; border-radius: 16px; color: #333;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1); cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+
+    /* ゲームヘッダー */
+    #header {
+      width: 100%; background: white; padding: 10px 0;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      display: flex; justify-content: space-around; align-items: center; z-index: 5;
+    }
+    .info-box { font-size: 17px; font-weight: bold; color: #333; }
+    #stage-title { color: #d32f2f; font-size: 20px; }
+    #level-step { color: #1976d2; font-size: 16px; }
+
+    /* キャンバス */
+    #canvas-container {
+      position: relative; margin: 15px auto;
+      width: 850px; height: 440px; background: white;
+      border: 5px solid #4a90e2; border-radius: 24px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+    }
+    canvas { position: absolute; top: 0; left: 0; }
+    .icon {
+      position: absolute; font-size: 52px;
+      transform: translate(-50%, -50%); pointer-events: none;
+      user-select: none; z-index: 10;
+    }
+
+    /* スタート位置アニメーション */
+    #startIcon {
+      animation: bounce 1.2s infinite ease-in-out;
+    }
+
+    #startPulse {
+      position: absolute; width: 75px; height: 75px;
+      border-radius: 50%; background: rgba(255, 87, 34, 0.3);
+      border: 3px solid #ff5722;
+      transform: translate(-50%, -50%); pointer-events: none;
+      z-index: 8; animation: pulse 1.5s infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translate(-50%, -50%) translateY(0); }
+      50% { transform: translate(-50%, -50%) translateY(-8px); }
+    }
+    @keyframes pulse {
+      0% { transform: translate(-50%, -50%) scale(0.8); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(1.4); opacity: 0; }
+    }
+
+    /* クリア・モーダル */
+    #clear-overlay {
+      display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(255,255,255,0.95); border-radius: 20px; z-index: 20;
+      flex-direction: column; justify-content: center; align-items: center;
+    }
+    #clear-stamp { font-size: 100px; animation: pop 0.4s ease-out; }
+    #clear-text { font-size: 32px; font-weight: bold; color: #ff4081; margin: 12px; }
+
+    @keyframes pop {
+      0% { transform: scale(0); }
+      80% { transform: scale(1.3); }
+      100% { transform: scale(1); }
+    }
+
+    /* シールシート */
+    #seal-screen { background: #fffde7; padding: 20px; box-sizing: border-box; }
+    .seal-grid {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px;
+      width: 650px; margin: 20px auto; background: white; padding: 20px;
+      border-radius: 20px; border: 3px solid #fbc02d; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .seal-slot {
+      height: 90px; border: 2px dashed #ccc; border-radius: 16px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-size: 45px; background: #fafafa; position: relative;
+    }
+    .seal-slot .num { position: absolute; top: 5px; left: 8px; font-size: 12px; color: #aaa; }
+
+    /* ボタン */
+    .btn {
+      padding: 10px 24px; font-size: 18px; font-weight: bold;
+      color: white; background-color: #ff5722; border: none;
+      border-radius: 25px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      cursor: pointer; margin: 6px;
+    }
+    .btn-secondary { background-color: #4caf50; }
+    .btn-blue { background-color: #2196f3; }
+  </style>
+</head>
+<body>
+
+  <!-- 1. プレイヤー選択画面 -->
+  <div id="player-screen" class="screen active-screen">
+    <div class="player-title">🚗 だれが あそぶかな？</div>
+    <div class="player-list" id="player-list"></div>
+  </div>
+
+  <!-- 2. メインゲーム画面 -->
+  <div id="game-screen" class="screen">
+    <div id="header">
+      <button class="btn btn-blue" onclick="showPlayerScreen()" style="padding: 5px 14px; font-size: 14px;">👤 かえる</button>
+      <div class="info-box" id="player-name-display">👤 ---</div>
+      <div class="info-box" id="stage-title">✏️ よこ線 (みぎへ)</div>
+      <div class="info-box">
+        <span id="question-num">だい 1 / 10 もん</span>
+        <span id="level-step">（ふとさ: 3.0cm）</span>
+      </div>
+      <button class="btn btn-secondary" onclick="openSealScreen()" style="padding: 5px 14px; font-size: 14px;">💮 シール</button>
+    </div>
+
+    <div id="canvas-container">
+      <canvas id="guideCanvas" width="850" height="440"></canvas>
+      <canvas id="drawCanvas" width="850" height="440"></canvas>
+
+      <!-- スタート位置の波紋エフェクト -->
+      <div id="startPulse"></div>
+
+      <!-- スタートアイコン -->
+      <div id="startIcon" class="icon">
+        <span id="startEmoji">🚗</span>
+      </div>
+
+      <div id="goalIcon" class="icon">🏁</div>
+      
+      <div id="clear-overlay">
+        <div id="clear-stamp">💮</div>
+        <div id="clear-text">ぜんぶ クリア！ すごいね！</div>
+        <div>
+          <button class="btn btn-secondary" onclick="openSealScreen()">シールを みる</button>
+          <button class="btn btn-blue" onclick="restartStage()">もういちど あそぶ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. シール帳画面 -->
+  <div id="seal-screen" class="screen">
+    <h2 style="color: #f57f17; margin: 15px;">💮 ごほうび シールシート 💮</h2>
+    <div class="seal-grid" id="seal-grid"></div>
+    <button class="btn btn-blue" onclick="showGameScreen()">ゲームにもどる</button>
+  </div>
+
+  <script>
+    // 乗り物リスト（スタートの絵文字）
+    const vehicleList = ["🚗", "🚃", "🚄", "🚀", "🚑", "🚌", "🛩️", "🚜", "🚲", "⛵"];
+    const sealIcons = ["🚗", "🏎️", "🚚", "🚑", "🚒", "警車", "タクシー", "バス", "新幹線", "💮"];
+
+    // 画面解像度での計算基準 (1cm = 約37.8px)
+    const CM_TO_PX = 37.8;
+
+    // 10問の太さ定義（3.0cm 〜 1.0cm に徐々に細くしていく）
+    const qSteps10 = [
+      { cm: 3.0, px: Math.round(3.0 * CM_TO_PX), alpha: 1.0, lenFactor: 0.35, name: '（ふとさ: 3.0cm）' },
+      { cm: 2.8, px: Math.round(2.8 * CM_TO_PX), alpha: 0.95, lenFactor: 0.40, name: '（ふとさ: 2.8cm）' },
+      { cm: 2.6, px: Math.round(2.6 * CM_TO_PX), alpha: 0.9,  lenFactor: 0.45, name: '（ふとさ: 2.6cm）' },
+      { cm: 2.3, px: Math.round(2.3 * CM_TO_PX), alpha: 0.8,  lenFactor: 0.50, name: '（ふとさ: 2.3cm）' },
+      { cm: 2.1, px: Math.round(2.1 * CM_TO_PX), alpha: 0.75, lenFactor: 0.55, name: '（ふとさ: 2.1cm）' },
+      { cm: 1.8, px: Math.round(1.8 * CM_TO_PX), alpha: 0.7,  lenFactor: 0.60, name: '（ふとさ: 1.8cm）' },
+      { cm: 1.6, px: Math.round(1.6 * CM_TO_PX), alpha: 0.6,  lenFactor: 0.65, name: '（ふとさ: 1.6cm）' },
+      { cm: 1.4, px: Math.round(1.4 * CM_TO_PX), alpha: 0.5,  lenFactor: 0.70, name: '（ふとさ: 1.4cm）' },
+      { cm: 1.2, px: Math.round(1.2 * CM_TO_PX), alpha: 0.4,  lenFactor: 0.75, name: '（ふとさ: 1.2cm）' },
+      { cm: 1.0, px: Math.round(1.0 * CM_TO_PX), alpha: 0.3,  lenFactor: 0.80, name: '（ふとさ: 1.0cm）' }
+    ];
+
+    // プレイヤーデータ
+    let players = JSON.parse(localStorage.getItem('unhit_players_st1')) || [
+      { name: "プレイヤー1", clearedQ: [] },
+      { name: "プレイヤー2", clearedQ: [] },
+      { name: "プレイヤー3", clearedQ: [] }
+    ];
+    let currentPlayerIdx = 0;
+    let currentQIdx = 0;
+
+    let pathPoints = [];
+    let isDrawing = false;
+    let startValid = false;
+
+    const width = 850;
+    const height = 440;
+    const guideCanvas = document.getElementById('guideCanvas');
+    const drawCanvas = document.getElementById('drawCanvas');
+    const gCtx = guideCanvas.getContext('2d');
+    const dCtx = drawCanvas.getContext('2d');
+
+    function showScreen(screenId) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
+      document.getElementById(screenId).classList.add('active-screen');
+    }
+
+    function showPlayerScreen() {
+      const listEl = document.getElementById('player-list');
+      listEl.innerHTML = '';
+      players.forEach((p, idx) => {
+        const btn = document.createElement('div');
+        btn.className = 'player-btn';
+        btn.innerHTML = `<span>👤 ${p.name}</span> <span style="font-size:14px; color:#666;">シール: ${p.clearedQ.length}/10</span>`;
+        btn.onclick = () => selectPlayer(idx);
+        listEl.appendChild(btn);
+      });
+      showScreen('player-screen');
+    }
+
+    function selectPlayer(idx) {
+      currentPlayerIdx = idx;
+      document.getElementById('player-name-display').innerText = `👤 ${players[idx].name}`;
+      currentQIdx = 0;
+      showGameScreen();
+    }
+
+    function showGameScreen() {
+      showScreen('game-screen');
+      initQuestion();
+    }
+
+    function restartStage() {
+      currentQIdx = 0;
+      initQuestion();
+    }
+
+    // 効果音
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSound(type) {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      if (type === 'good') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+        osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.25);
+      } else if (type === 'stageClear') {
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((f, i) => {
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.frequency.value = f;
+          o.connect(g); g.connect(audioCtx.destination);
+          o.start(audioCtx.currentTime + i * 0.08);
+          g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.08 + 0.25);
+          o.stop(audioCtx.currentTime + i * 0.08 + 0.25);
+        });
+      }
+    }
+
+    // よこ線（直線）の点作成
+    function generateLinePath(lenFactor) {
+      const points = [];
+      const cx = width / 2;
+      const cy = height / 2;
+      const baseLen = 580 * lenFactor;
+      const numPoints = 100;
+
+      for (let i = 0; i <= numPoints; i++) {
+        let t = i / numPoints;
+        let x = cx - baseLen / 2 + baseLen * t;
+        let y = cy;
+        points.push({ x: x, y: y });
+      }
+      return points;
+    }
+
+    function initQuestion() {
+      const stepConfig = qSteps10[currentQIdx];
+
+      document.getElementById('question-num').innerText = `だい ${currentQIdx + 1} / 10 もん`;
+      document.getElementById('level-step').innerText = stepConfig.name;
+      document.getElementById('clear-overlay').style.display = 'none';
+
+      pathPoints = generateLinePath(stepConfig.lenFactor);
+      const startPt = pathPoints[0];
+      const goalPt = pathPoints[pathPoints.length - 1];
+
+      // アイコン配置
+      const vChar = vehicleList[currentQIdx % vehicleList.length];
+      const startEl = document.getElementById('startIcon');
+      const startEmojiEl = document.getElementById('startEmoji');
+      const goalEl = document.getElementById('goalIcon');
+      const pulseEl = document.getElementById('startPulse');
+
+      startEmojiEl.innerText = vChar;
+      goalEl.innerText = "🏁";
+      
+      startEl.style.left = startPt.x + 'px';
+      startEl.style.top = startPt.y + 'px';
+
+      pulseEl.style.left = startPt.x + 'px';
+      pulseEl.style.top = startPt.y + 'px';
+
+      goalEl.style.left = goalPt.x + 'px';
+      goalEl.style.top = goalPt.y + 'px';
+
+      // 描画初期化
+      gCtx.clearRect(0, 0, width, height);
+      dCtx.clearRect(0, 0, width, height);
+
+      // 【1】指定の「太さ（縦幅）」を持つ背景ガイドライン（塗りつぶし）
+      gCtx.beginPath();
+      gCtx.strokeStyle = `rgba(225, 245, 254, ${stepConfig.alpha})`;
+      gCtx.lineWidth = stepConfig.px; // 3cm -> 1cm
+      gCtx.lineCap = 'round';
+      pathPoints.forEach((p, i) => {
+        if (i === 0) gCtx.moveTo(p.x, p.y);
+        else gCtx.lineTo(p.x, p.y);
+      });
+      gCtx.stroke();
+
+      // 【2】中心の点線（導線）
+      gCtx.beginPath();
+      gCtx.strokeStyle = `rgba(3, 169, 244, ${Math.max(0.4, stepConfig.alpha)})`;
+      gCtx.lineWidth = Math.min(6, stepConfig.px * 0.2);
+      gCtx.setLineDash([12, 12]);
+      pathPoints.forEach((p, i) => {
+        if (i === 0) gCtx.moveTo(p.x, p.y);
+        else gCtx.lineTo(p.x, p.y);
+      });
+      gCtx.stroke();
+      gCtx.setLineDash([]);
+
+      // 【3】進行方向指示（右向き矢印）
+      const p1 = pathPoints[0];
+      gCtx.save();
+      gCtx.translate(p1.x + 45, p1.y);
+      gCtx.fillStyle = '#ff5722';
+      gCtx.beginPath();
+      gCtx.moveTo(0, 0);
+      gCtx.lineTo(-18, -12);
+      gCtx.lineTo(-18, 12);
+      gCtx.closePath();
+      gCtx.fill();
+      gCtx.restore();
+    }
+
+    // まっすぐ補正（Y軸固定スナップ）
+    function getSnappedPos(rawX, rawY) {
+      const stepConfig = qSteps10[currentQIdx];
+      const lineY = pathPoints[0].y;
+      const startX = pathPoints[0].x - 30;
+      const endX = pathPoints[pathPoints.length - 1].x + 30;
+      
+      // 許容誤差範囲（太さに応じて吸着幅を調整）
+      const snapMargin = Math.max(40, stepConfig.px * 0.8);
+
+      if (rawX >= startX && rawX <= endX && Math.abs(rawY - lineY) < snapMargin) {
+        return { x: rawX, y: lineY };
+      }
+      return { x: rawX, y: rawY };
+    }
+
+    function getCanvasPos(e) {
+      const rect = drawCanvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function startDraw(e) {
+      const pos = getCanvasPos(e);
+      const startPt = pathPoints[0];
+      if (Math.hypot(pos.x - startPt.x, pos.y - startPt.y) < 60) {
+        isDrawing = true;
+        startValid = true;
+        const snapped = getSnappedPos(pos.x, pos.y);
+        
+        // 線の太さに応じて描画ペン幅もスムーズに変化
+        const drawLineWidth = Math.max(10, qSteps10[currentQIdx].px * 0.4);
+
+        dCtx.beginPath();
+        dCtx.moveTo(snapped.x, snapped.y);
+        dCtx.strokeStyle = '#ff2a6d';
+        dCtx.lineWidth = drawLineWidth;
+        dCtx.lineCap = 'round';
+        dCtx.lineJoin = 'round';
+      }
+    }
+
+    function draw(e) {
+      if (!isDrawing) return;
+      const pos = getCanvasPos(e);
+      const snapped = getSnappedPos(pos.x, pos.y);
+      dCtx.lineTo(snapped.x, snapped.y);
+      dCtx.stroke();
+    }
+
+    function endDraw(e) {
+      if (!isDrawing) return;
+      isDrawing = false;
+      const goalPt = pathPoints[pathPoints.length - 1];
+
+      const changed = e.changedTouches ? e.changedTouches[0] : e;
+      const rect = drawCanvas.getBoundingClientRect();
+      const endX = changed.clientX - rect.left;
+      const endY = changed.clientY - rect.top;
+
+      if (startValid && Math.hypot(endX - goalPt.x, endY - goalPt.y) < 65) {
+        playSound('good');
+
+        // シール獲得記録
+        const p = players[currentPlayerIdx];
+        if (!p.clearedQ.includes(currentQIdx + 1)) {
+          p.clearedQ.push(currentQIdx + 1);
+          localStorage.setItem('unhit_players_st1', JSON.stringify(players));
+        }
+
+        currentQIdx++;
+        if (currentQIdx < qSteps10.length) {
+          setTimeout(initQuestion, 300);
+        } else {
+          // 全10問完了時
+          setTimeout(() => {
+            playSound('stageClear');
+            document.getElementById('clear-overlay').style.display = 'flex';
+          }, 300);
+        }
+      }
+      startValid = false;
+    }
+
+    drawCanvas.addEventListener('touchstart', startDraw);
+    drawCanvas.addEventListener('touchmove', draw);
+    drawCanvas.addEventListener('touchend', endDraw);
+    drawCanvas.addEventListener('mousedown', startDraw);
+    drawCanvas.addEventListener('mousemove', draw);
+    drawCanvas.addEventListener('mouseup', endDraw);
+
+    function openSealScreen() {
+      const grid = document.getElementById('seal-grid');
+      grid.innerHTML = '';
+      const cleared = players[currentPlayerIdx].clearedQ;
+
+      for (let i = 1; i <= 10; i++) {
+        const slot = document.createElement('div');
+        slot.className = 'seal-slot';
+        if (cleared.includes(i)) {
+          slot.innerText = sealIcons[i - 1];
+        } else {
+          slot.innerHTML = `<span class="num">${i}</span>`;
+        }
+        grid.appendChild(slot);
+      }
+      showScreen('seal-screen');
+    }
+
+    // 初期起動
+    showPlayerScreen();
+  </script>
+</body>
+</html>
