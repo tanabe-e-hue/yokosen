@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>よこ線 かんせい ワーク（3cm➔1cm）</title>
+  <title>よこ線 かんせい ワーク（ゴール固定・スタートずらし版）</title>
   <style>
     body {
       margin: 0; padding: 0;
@@ -175,18 +175,18 @@
     // 画面解像度での計算基準 (1cm = 約37.8px)
     const CM_TO_PX = 37.8;
 
-    // 10問の太さ定義（3.0cm 〜 1.0cm に徐々に細くしていく）
+    // ★ 10問の定義（ゴールは右端固定。ratioが0.30➔1.00へ増えるにつれてスタート位置が「左へずれる＝線が伸びる」）
     const qSteps10 = [
-      { cm: 3.0, px: Math.round(3.0 * CM_TO_PX), alpha: 1.0, lenFactor: 0.35, name: '（ふとさ: 3.0cm）' },
-      { cm: 2.8, px: Math.round(2.8 * CM_TO_PX), alpha: 0.95, lenFactor: 0.40, name: '（ふとさ: 2.8cm）' },
-      { cm: 2.6, px: Math.round(2.6 * CM_TO_PX), alpha: 0.9,  lenFactor: 0.45, name: '（ふとさ: 2.6cm）' },
-      { cm: 2.3, px: Math.round(2.3 * CM_TO_PX), alpha: 0.8,  lenFactor: 0.50, name: '（ふとさ: 2.3cm）' },
-      { cm: 2.1, px: Math.round(2.1 * CM_TO_PX), alpha: 0.75, lenFactor: 0.55, name: '（ふとさ: 2.1cm）' },
-      { cm: 1.8, px: Math.round(1.8 * CM_TO_PX), alpha: 0.7,  lenFactor: 0.60, name: '（ふとさ: 1.8cm）' },
-      { cm: 1.6, px: Math.round(1.6 * CM_TO_PX), alpha: 0.6,  lenFactor: 0.65, name: '（ふとさ: 1.6cm）' },
-      { cm: 1.4, px: Math.round(1.4 * CM_TO_PX), alpha: 0.5,  lenFactor: 0.70, name: '（ふとさ: 1.4cm）' },
-      { cm: 1.2, px: Math.round(1.2 * CM_TO_PX), alpha: 0.4,  lenFactor: 0.75, name: '（ふとさ: 1.2cm）' },
-      { cm: 1.0, px: Math.round(1.0 * CM_TO_PX), alpha: 0.3,  lenFactor: 0.80, name: '（ふとさ: 1.0cm）' }
+      { cm: 3.0, px: Math.round(3.0 * CM_TO_PX), alpha: 1.0, ratio: 0.30, name: '（ふtoさ: 3.0cm / ながさ: 30%）' },
+      { cm: 2.8, px: Math.round(2.8 * CM_TO_PX), alpha: 0.95, ratio: 0.38, name: '（ふとさ: 2.8cm / ながさ: 38%）' },
+      { cm: 2.6, px: Math.round(2.6 * CM_TO_PX), alpha: 0.9,  ratio: 0.46, name: '（ふとさ: 2.6cm / ながさ: 46%）' },
+      { cm: 2.3, px: Math.round(2.3 * CM_TO_PX), alpha: 0.8,  ratio: 0.54, name: '（ふとさ: 2.3cm / ながさ: 54%）' },
+      { cm: 2.1, px: Math.round(2.1 * CM_TO_PX), alpha: 0.75, ratio: 0.62, name: '（ふとさ: 2.1cm / ながさ: 62%）' },
+      { cm: 1.8, px: Math.round(1.8 * CM_TO_PX), alpha: 0.7,  ratio: 0.70, name: '（ふとさ: 1.8cm / ながさ: 70%）' },
+      { cm: 1.6, px: Math.round(1.6 * CM_TO_PX), alpha: 0.6,  ratio: 0.78, name: '（ふとさ: 1.6cm / ながさ: 78%）' },
+      { cm: 1.4, px: Math.round(1.4 * CM_TO_PX), alpha: 0.5,  ratio: 0.86, name: '（ふとさ: 1.4cm / ながさ: 86%）' },
+      { cm: 1.2, px: Math.round(1.2 * CM_TO_PX), alpha: 0.4,  ratio: 0.93, name: '（ふとさ: 1.2cm / ながさ: 93%）' },
+      { cm: 1.0, px: Math.round(1.0 * CM_TO_PX), alpha: 0.3,  ratio: 1.00, name: '（ふとさ: 1.0cm / 端から端まで！）' }
     ];
 
     // プレイヤーデータ
@@ -271,17 +271,26 @@
       }
     }
 
-    // よこ線（直線）の点作成
-    function generateLinePath(lenFactor) {
+    // ★ ゴール（右端）固定でスタート位置を「左側」へずらしていく計算
+    function generateLinePath(ratio) {
       const points = [];
-      const cx = width / 2;
       const cy = height / 2;
-      const baseLen = 580 * lenFactor;
       const numPoints = 100;
+
+      const minX = 65;               // 最大まで伸びたときの最左端スタート位置
+      const maxX = width - 65;       // ゴール位置（常に右端に固定）
+      const maxDistance = maxX - minX; // 最大可能距離（720px）
+
+      // 今回の線の長さ
+      const currentLen = maxDistance * ratio;
+
+      // ゴール位置（右端）から逆算してスタート位置を設定
+      const endX = maxX;
+      const startX = endX - currentLen;
 
       for (let i = 0; i <= numPoints; i++) {
         let t = i / numPoints;
-        let x = cx - baseLen / 2 + baseLen * t;
+        let x = startX + (endX - startX) * t;
         let y = cy;
         points.push({ x: x, y: y });
       }
@@ -295,7 +304,7 @@
       document.getElementById('level-step').innerText = stepConfig.name;
       document.getElementById('clear-overlay').style.display = 'none';
 
-      pathPoints = generateLinePath(stepConfig.lenFactor);
+      pathPoints = generateLinePath(stepConfig.ratio);
       const startPt = pathPoints[0];
       const goalPt = pathPoints[pathPoints.length - 1];
 
@@ -322,10 +331,10 @@
       gCtx.clearRect(0, 0, width, height);
       dCtx.clearRect(0, 0, width, height);
 
-      // 【1】指定の「太さ（縦幅）」を持つ背景ガイドライン（塗りつぶし）
+      // 【1】指定の「太さ（縦幅）」を持つ背景ガイドライン
       gCtx.beginPath();
       gCtx.strokeStyle = `rgba(225, 245, 254, ${stepConfig.alpha})`;
-      gCtx.lineWidth = stepConfig.px; // 3cm -> 1cm
+      gCtx.lineWidth = stepConfig.px; // 3.0cm -> 1.0cm
       gCtx.lineCap = 'round';
       pathPoints.forEach((p, i) => {
         if (i === 0) gCtx.moveTo(p.x, p.y);
@@ -366,7 +375,7 @@
       const startX = pathPoints[0].x - 30;
       const endX = pathPoints[pathPoints.length - 1].x + 30;
       
-      // 許容誤差範囲（太さに応じて吸着幅を調整）
+      // 許容誤差範囲
       const snapMargin = Math.max(40, stepConfig.px * 0.8);
 
       if (rawX >= startX && rawX <= endX && Math.abs(rawY - lineY) < snapMargin) {
@@ -390,7 +399,7 @@
         startValid = true;
         const snapped = getSnappedPos(pos.x, pos.y);
         
-        // 線の太さに応じて描画ペン幅もスムーズに変化
+        // 描画ペンの太さ設定
         const drawLineWidth = Math.max(10, qSteps10[currentQIdx].px * 0.4);
 
         dCtx.beginPath();
