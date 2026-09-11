@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>よこ線 かんせい ワーク（ゴール固定・スタートずらし版）</title>
+  <title>よこ線 かんせい ワーク（50問・10ステージ版）</title>
   <style>
     body {
       margin: 0; padding: 0;
@@ -27,6 +27,21 @@
       box-shadow: 0 4px 6px rgba(0,0,0,0.1); cursor: pointer;
       display: flex; justify-content: space-between; align-items: center;
     }
+
+    /* ステージ選択画面 */
+    #stage-select-screen { background: #e8f5e9; overflow-y: auto; }
+    .stage-grid {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px;
+      width: 700px; margin: 20px auto;
+    }
+    .stage-btn {
+      background: white; border: 3px solid #4caf50; border-radius: 16px;
+      padding: 15px 10px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .stage-btn.locked { opacity: 0.6; filter: grayscale(1); }
+    .stage-btn .st-title { font-size: 18px; font-weight: bold; color: #2e7d32; }
+    .stage-btn .st-sub { font-size: 12px; color: #666; margin-top: 4px; }
 
     /* ゲームヘッダー */
     #header {
@@ -90,18 +105,18 @@
     }
 
     /* シールシート */
-    #seal-screen { background: #fffde7; padding: 20px; box-sizing: border-box; }
+    #seal-screen { background: #fffde7; padding: 20px; box-sizing: border-box; overflow-y: auto; }
     .seal-grid {
-      display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px;
-      width: 650px; margin: 20px auto; background: white; padding: 20px;
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;
+      width: 700px; margin: 15px auto; background: white; padding: 20px;
       border-radius: 20px; border: 3px solid #fbc02d; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
     .seal-slot {
-      height: 90px; border: 2px dashed #ccc; border-radius: 16px;
+      height: 75px; border: 2px dashed #ccc; border-radius: 16px;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      font-size: 45px; background: #fafafa; position: relative;
+      font-size: 38px; background: #fafafa; position: relative;
     }
-    .seal-slot .num { position: absolute; top: 5px; left: 8px; font-size: 12px; color: #aaa; }
+    .seal-slot .num { position: absolute; top: 3px; left: 6px; font-size: 11px; color: #aaa; }
 
     /* ボタン */
     .btn {
@@ -122,14 +137,24 @@
     <div class="player-list" id="player-list"></div>
   </div>
 
-  <!-- 2. メインゲーム画面 -->
+  <!-- 2. ステージ選択画面 -->
+  <div id="stage-select-screen" class="screen">
+    <h2 style="color: #2e7d32; margin-top: 20px;">🗺️ ステージを えらんでね</h2>
+    <div class="stage-grid" id="stage-grid"></div>
+    <div>
+      <button class="btn btn-blue" onclick="showPlayerScreen()">👤 プレイヤーを かえる</button>
+      <button class="btn btn-secondary" onclick="openSealScreen()">💮 シールちょう</button>
+    </div>
+  </div>
+
+  <!-- 3. メインゲーム画面 -->
   <div id="game-screen" class="screen">
     <div id="header">
-      <button class="btn btn-blue" onclick="showPlayerScreen()" style="padding: 5px 14px; font-size: 14px;">👤 かえる</button>
+      <button class="btn btn-blue" onclick="showStageSelectScreen()" style="padding: 5px 14px; font-size: 14px;">🗺️ もどる</button>
       <div class="info-box" id="player-name-display">👤 ---</div>
-      <div class="info-box" id="stage-title">✏️ よこ線 (みぎへ)</div>
+      <div class="info-box" id="stage-title">✏️ ステージ 1</div>
       <div class="info-box">
-        <span id="question-num">だい 1 / 10 もん</span>
+        <span id="question-num">だい 1 / 5 もん</span>
         <span id="level-step">（ふとさ: 3.0cm）</span>
       </div>
       <button class="btn btn-secondary" onclick="openSealScreen()" style="padding: 5px 14px; font-size: 14px;">💮 シール</button>
@@ -151,20 +176,21 @@
       
       <div id="clear-overlay">
         <div id="clear-stamp">💮</div>
-        <div id="clear-text">ぜんぶ クリア！ すごいね！</div>
+        <div id="clear-text">ステージ クリア！ すごいね！</div>
         <div>
           <button class="btn btn-secondary" onclick="openSealScreen()">シールを みる</button>
-          <button class="btn btn-blue" onclick="restartStage()">もういちど あそぶ</button>
+          <button class="btn btn-blue" onclick="nextStageOrRestart()">つぎの ステージへ</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 3. シール帳画面 -->
+  <!-- 4. シール帳画面 -->
   <div id="seal-screen" class="screen">
-    <h2 style="color: #f57f17; margin: 15px;">💮 ごほうび シールシート 💮</h2>
+    <h2 style="color: #f57f17; margin: 15px 0 5px 0;">💮 ごほうび シールシート 💮</h2>
+    <div style="font-weight: bold; color: #555;" id="seal-progress-text">シール 0 / 10</div>
     <div class="seal-grid" id="seal-grid"></div>
-    <button class="btn btn-blue" onclick="showGameScreen()">ゲームにもどる</button>
+    <button class="btn btn-blue" onclick="showStageSelectScreen()">ステージえらびへ</button>
   </div>
 
   <script>
@@ -175,28 +201,30 @@
     // 画面解像度での計算基準 (1cm = 約37.8px)
     const CM_TO_PX = 37.8;
 
-    // ★ 10問の定義（ゴールは右端固定。ratioが0.30➔1.00へ増えるにつれてスタート位置が「左へずれる＝線が伸びる」）
-    const qSteps10 = [
-      { cm: 3.0, px: Math.round(3.0 * CM_TO_PX), alpha: 1.0, ratio: 0.30, name: '（ふtoさ: 3.0cm / ながさ: 30%）' },
-      { cm: 2.8, px: Math.round(2.8 * CM_TO_PX), alpha: 0.95, ratio: 0.38, name: '（ふとさ: 2.8cm / ながさ: 38%）' },
-      { cm: 2.6, px: Math.round(2.6 * CM_TO_PX), alpha: 0.9,  ratio: 0.46, name: '（ふとさ: 2.6cm / ながさ: 46%）' },
-      { cm: 2.3, px: Math.round(2.3 * CM_TO_PX), alpha: 0.8,  ratio: 0.54, name: '（ふとさ: 2.3cm / ながさ: 54%）' },
-      { cm: 2.1, px: Math.round(2.1 * CM_TO_PX), alpha: 0.75, ratio: 0.62, name: '（ふとさ: 2.1cm / ながさ: 62%）' },
-      { cm: 1.8, px: Math.round(1.8 * CM_TO_PX), alpha: 0.7,  ratio: 0.70, name: '（ふとさ: 1.8cm / ながさ: 70%）' },
-      { cm: 1.6, px: Math.round(1.6 * CM_TO_PX), alpha: 0.6,  ratio: 0.78, name: '（ふとさ: 1.6cm / ながさ: 78%）' },
-      { cm: 1.4, px: Math.round(1.4 * CM_TO_PX), alpha: 0.5,  ratio: 0.86, name: '（ふとさ: 1.4cm / ながさ: 86%）' },
-      { cm: 1.2, px: Math.round(1.2 * CM_TO_PX), alpha: 0.4,  ratio: 0.93, name: '（ふとさ: 1.2cm / ながさ: 93%）' },
-      { cm: 1.0, px: Math.round(1.0 * CM_TO_PX), alpha: 0.3,  ratio: 1.00, name: '（ふとさ: 1.0cm / 端から端まで！）' }
+    // 1ステージ5問 × 10ステージの設定（全50パターン）
+    // cm: 太さ, ratios: 1ステージ内の各問題(1~5)における線の長さ割合
+    const stageConfigs = [
+      { st: 1, cm: 3.0, alpha: 1.0,  ratios: [0.30, 0.45, 0.60, 0.75, 0.90] },
+      { st: 2, cm: 2.8, alpha: 0.95, ratios: [0.32, 0.47, 0.62, 0.77, 0.92] },
+      { st: 3, cm: 2.6, alpha: 0.9,  ratios: [0.34, 0.49, 0.64, 0.79, 0.94] },
+      { st: 4, cm: 2.3, alpha: 0.85, ratios: [0.36, 0.51, 0.66, 0.81, 0.96] },
+      { st: 5, cm: 2.1, alpha: 0.8,  ratios: [0.38, 0.53, 0.68, 0.83, 0.98] },
+      { st: 6, cm: 1.8, alpha: 0.75, ratios: [0.40, 0.55, 0.70, 0.85, 1.00] },
+      { st: 7, cm: 1.6, alpha: 0.7,  ratios: [0.42, 0.57, 0.72, 0.87, 1.00] },
+      { st: 8, cm: 1.4, alpha: 0.6,  ratios: [0.44, 0.59, 0.74, 0.89, 1.00] },
+      { st: 9, cm: 1.2, alpha: 0.5,  ratios: [0.46, 0.61, 0.76, 0.91, 1.00] },
+      { st: 10, cm: 1.0, alpha: 0.4, ratios: [0.50, 0.65, 0.80, 0.92, 1.00] }
     ];
 
-    // プレイヤーデータ
-    let players = JSON.parse(localStorage.getItem('unhit_players_st1')) || [
-      { name: "プレイヤー1", clearedQ: [] },
-      { name: "プレイヤー2", clearedQ: [] },
-      { name: "プレイヤー3", clearedQ: [] }
+    // プレイヤーデータ管理
+    let players = JSON.parse(localStorage.getItem('unhit_players_st50')) || [
+      { name: "プレイヤー1", clearedStages: [] },
+      { name: "プレイヤー2", clearedStages: [] },
+      { name: "プレイヤー3", clearedStages: [] }
     ];
     let currentPlayerIdx = 0;
-    let currentQIdx = 0;
+    let currentStageIdx = 0; // 0 ~ 9
+    let currentQIdx = 0;     // 0 ~ 4
 
     let pathPoints = [];
     let isDrawing = false;
@@ -220,7 +248,7 @@
       players.forEach((p, idx) => {
         const btn = document.createElement('div');
         btn.className = 'player-btn';
-        btn.innerHTML = `<span>👤 ${p.name}</span> <span style="font-size:14px; color:#666;">シール: ${p.clearedQ.length}/10</span>`;
+        btn.innerHTML = `<span>👤 ${p.name}</span> <span style="font-size:14px; color:#666;">シール: ${p.clearedStages.length}/10</span>`;
         btn.onclick = () => selectPlayer(idx);
         listEl.appendChild(btn);
       });
@@ -230,6 +258,31 @@
     function selectPlayer(idx) {
       currentPlayerIdx = idx;
       document.getElementById('player-name-display').innerText = `👤 ${players[idx].name}`;
+      showStageSelectScreen();
+    }
+
+    function showStageSelectScreen() {
+      const grid = document.getElementById('stage-grid');
+      grid.innerHTML = '';
+      const cleared = players[currentPlayerIdx].clearedStages;
+
+      for (let i = 0; i < 10; i++) {
+        const btn = document.createElement('div');
+        const isCleared = cleared.includes(i + 1);
+        btn.className = 'stage-btn';
+        btn.innerHTML = `
+          <div class="st-title">ステージ ${i + 1}</div>
+          <div style="font-size:24px; margin: 4px 0;">${isCleared ? '💮' : '✏️'}</div>
+          <div class="st-sub">ふとさ: ${stageConfigs[i].cm}cm</div>
+        `;
+        btn.onclick = () => startStage(i);
+        grid.appendChild(btn);
+      }
+      showScreen('stage-select-screen');
+    }
+
+    function startStage(stageIdx) {
+      currentStageIdx = stageIdx;
       currentQIdx = 0;
       showGameScreen();
     }
@@ -239,9 +292,14 @@
       initQuestion();
     }
 
-    function restartStage() {
-      currentQIdx = 0;
-      initQuestion();
+    function nextStageOrRestart() {
+      if (currentStageIdx < 9) {
+        currentStageIdx++;
+        currentQIdx = 0;
+        initQuestion();
+      } else {
+        showStageSelectScreen();
+      }
     }
 
     // 効果音
@@ -271,20 +329,17 @@
       }
     }
 
-    // ★ ゴール（右端）固定でスタート位置を「左側」へずらしていく計算
+    // ゴール固定でスタート位置を「左側」へずらしていく計算
     function generateLinePath(ratio) {
       const points = [];
       const cy = height / 2;
       const numPoints = 100;
 
-      const minX = 65;               // 最大まで伸びたときの最左端スタート位置
-      const maxX = width - 65;       // ゴール位置（常に右端に固定）
-      const maxDistance = maxX - minX; // 最大可能距離（720px）
+      const minX = 65;         // 最左端
+      const maxX = width - 65; // ゴール位置（右端固定）
+      const maxDistance = maxX - minX;
 
-      // 今回の線の長さ
       const currentLen = maxDistance * ratio;
-
-      // ゴール位置（右端）から逆算してスタート位置を設定
       const endX = maxX;
       const startX = endX - currentLen;
 
@@ -298,18 +353,21 @@
     }
 
     function initQuestion() {
-      const stepConfig = qSteps10[currentQIdx];
+      const stConfig = stageConfigs[currentStageIdx];
+      const ratio = stConfig.ratios[currentQIdx];
+      const pxWidth = Math.round(stConfig.cm * CM_TO_PX);
 
-      document.getElementById('question-num').innerText = `だい ${currentQIdx + 1} / 10 もん`;
-      document.getElementById('level-step').innerText = stepConfig.name;
+      document.getElementById('stage-title').innerText = `✏️ ステージ ${currentStageIdx + 1}`;
+      document.getElementById('question-num').innerText = `だい ${currentQIdx + 1} / 5 もん`;
+      document.getElementById('level-step').innerText = `（ふとさ: ${stConfig.cm}cm）`;
       document.getElementById('clear-overlay').style.display = 'none';
 
-      pathPoints = generateLinePath(stepConfig.ratio);
+      pathPoints = generateLinePath(ratio);
       const startPt = pathPoints[0];
       const goalPt = pathPoints[pathPoints.length - 1];
 
       // アイコン配置
-      const vChar = vehicleList[currentQIdx % vehicleList.length];
+      const vChar = vehicleList[(currentStageIdx + currentQIdx) % vehicleList.length];
       const startEl = document.getElementById('startIcon');
       const startEmojiEl = document.getElementById('startEmoji');
       const goalEl = document.getElementById('goalIcon');
@@ -331,10 +389,10 @@
       gCtx.clearRect(0, 0, width, height);
       dCtx.clearRect(0, 0, width, height);
 
-      // 【1】指定の「太さ（縦幅）」を持つ背景ガイドライン
+      // 【1】ガイド背景
       gCtx.beginPath();
-      gCtx.strokeStyle = `rgba(225, 245, 254, ${stepConfig.alpha})`;
-      gCtx.lineWidth = stepConfig.px; // 3.0cm -> 1.0cm
+      gCtx.strokeStyle = `rgba(225, 245, 254, ${stConfig.alpha})`;
+      gCtx.lineWidth = pxWidth;
       gCtx.lineCap = 'round';
       pathPoints.forEach((p, i) => {
         if (i === 0) gCtx.moveTo(p.x, p.y);
@@ -342,10 +400,10 @@
       });
       gCtx.stroke();
 
-      // 【2】中心の点線（導線）
+      // 【2】中心の点線
       gCtx.beginPath();
-      gCtx.strokeStyle = `rgba(3, 169, 244, ${Math.max(0.4, stepConfig.alpha)})`;
-      gCtx.lineWidth = Math.min(6, stepConfig.px * 0.2);
+      gCtx.strokeStyle = `rgba(3, 169, 244, ${Math.max(0.4, stConfig.alpha)})`;
+      gCtx.lineWidth = Math.min(6, pxWidth * 0.2);
       gCtx.setLineDash([12, 12]);
       pathPoints.forEach((p, i) => {
         if (i === 0) gCtx.moveTo(p.x, p.y);
@@ -368,15 +426,15 @@
       gCtx.restore();
     }
 
-    // まっすぐ補正（Y軸固定スナップ）
+    // まっすぐ補正（Y軸スナップ）
     function getSnappedPos(rawX, rawY) {
-      const stepConfig = qSteps10[currentQIdx];
+      const stConfig = stageConfigs[currentStageIdx];
+      const pxWidth = stConfig.cm * CM_TO_PX;
       const lineY = pathPoints[0].y;
       const startX = pathPoints[0].x - 30;
       const endX = pathPoints[pathPoints.length - 1].x + 30;
       
-      // 許容誤差範囲
-      const snapMargin = Math.max(40, stepConfig.px * 0.8);
+      const snapMargin = Math.max(40, pxWidth * 0.8);
 
       if (rawX >= startX && rawX <= endX && Math.abs(rawY - lineY) < snapMargin) {
         return { x: rawX, y: lineY };
@@ -399,8 +457,8 @@
         startValid = true;
         const snapped = getSnappedPos(pos.x, pos.y);
         
-        // 描画ペンの太さ設定
-        const drawLineWidth = Math.max(10, qSteps10[currentQIdx].px * 0.4);
+        const pxWidth = stageConfigs[currentStageIdx].cm * CM_TO_PX;
+        const drawLineWidth = Math.max(10, pxWidth * 0.4);
 
         dCtx.beginPath();
         dCtx.moveTo(snapped.x, snapped.y);
@@ -432,18 +490,18 @@
       if (startValid && Math.hypot(endX - goalPt.x, endY - goalPt.y) < 65) {
         playSound('good');
 
-        // シール獲得記録
-        const p = players[currentPlayerIdx];
-        if (!p.clearedQ.includes(currentQIdx + 1)) {
-          p.clearedQ.push(currentQIdx + 1);
-          localStorage.setItem('unhit_players_st1', JSON.stringify(players));
-        }
-
         currentQIdx++;
-        if (currentQIdx < qSteps10.length) {
+        if (currentQIdx < 5) {
           setTimeout(initQuestion, 300);
         } else {
-          // 全10問完了時
+          // 5問すべてクリアでステージクリア
+          const p = players[currentPlayerIdx];
+          const stageNum = currentStageIdx + 1;
+          if (!p.clearedStages.includes(stageNum)) {
+            p.clearedStages.push(stageNum);
+            localStorage.setItem('unhit_players_st50', JSON.stringify(players));
+          }
+
           setTimeout(() => {
             playSound('stageClear');
             document.getElementById('clear-overlay').style.display = 'flex';
@@ -463,7 +521,9 @@
     function openSealScreen() {
       const grid = document.getElementById('seal-grid');
       grid.innerHTML = '';
-      const cleared = players[currentPlayerIdx].clearedQ;
+      const cleared = players[currentPlayerIdx].clearedStages;
+
+      document.getElementById('seal-progress-text').innerText = `シール: ${cleared.length} / 10`;
 
       for (let i = 1; i <= 10; i++) {
         const slot = document.createElement('div');
